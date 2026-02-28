@@ -411,7 +411,7 @@ function goToStep(step) {
 
 // --- Export (fully client-side -- no data leaves the browser) ---
 
-const PUBLISHER_ARRAY_FIELDS = ['permissionusergroups', 'tags'];
+const PUBLISHER_ARRAY_FIELDS = ['emergencycontacts', 'permissionusergroups', 'tags'];
 
 const PRIVILEGE_KEYS = [
   'attendant', 'aux_chairman', 'cbs', 'cbs_reader', 'chairman',
@@ -426,7 +426,6 @@ const PRIVILEGE_KEYS = [
 
 function sanitizePublisher(pub) {
   const out = Object.assign({}, pub);
-  delete out.emergencycontacts;
   for (const field of PUBLISHER_ARRAY_FIELDS) {
     if (!Array.isArray(out[field])) out[field] = [];
   }
