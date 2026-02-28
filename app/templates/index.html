@@ -182,7 +182,8 @@
 
   <!-- Footer -->
   <footer class="max-w-5xl mx-auto px-4 py-8 text-center text-xs text-gray-400">
-    JW Publisher Transfer Tool &middot; For transferring publisher records between congregation management tools
+    <p>JW Publisher Transfer Tool &middot; For transferring publisher records between congregation management tools</p>
+    <p class="mt-1">All data is processed locally in your browser. No publisher information is sent to any server.</p>
   </footer>
 
 <script>
@@ -408,7 +409,82 @@ function goToStep(step) {
   if (step === 3) prepareExport();
 }
 
-// --- Export ---
+// --- Export (fully client-side -- no data leaves the browser) ---
+
+const PUBLISHER_ARRAY_FIELDS = ['permissionusergroups', 'tags'];
+
+const PRIVILEGE_KEYS = [
+  'attendant', 'aux_chairman', 'cbs', 'cbs_reader', 'chairman',
+  'chairman2', 'chairman3', 'cleaning', 'closeprayer', 'conductFS',
+  'console', 'dfg', 'fm_discussion', 'fs_assistant', 'hh', 'host',
+  'initcall', 'interpreter', 'lac', 'localneeds', 'mics', 'mm_chairman',
+  'none', 'openprayer', 'prayer', 'pt', 'pt_out', 'publicMinistry',
+  'reading', 'rv', 'security_attendant', 'stage', 'stream', 'study',
+  'stutalk', 'treasures', 'video', 'wm_chairman', 'wm_reader',
+  'wt_conductor', 'zoom_attendant',
+];
+
+function sanitizePublisher(pub) {
+  const out = Object.assign({}, pub);
+  delete out.emergencycontacts;
+  for (const field of PUBLISHER_ARRAY_FIELDS) {
+    if (!Array.isArray(out[field])) out[field] = [];
+  }
+  return out;
+}
+
+function buildEmptyPrivileges() {
+  const p = {};
+  for (const k of PRIVILEGE_KEYS) p[k] = [];
+  return p;
+}
+
+function filterExport(data, idSet) {
+  const pubs = data.publishers
+    .filter(p => idSet.has(p.id))
+    .map(sanitizePublisher);
+
+  const neededAddrIds = new Set(pubs.map(p => p.address_id).filter(Boolean));
+  const addresses = Array.isArray(data.addresses)
+    ? data.addresses.filter(a => neededAddrIds.has(a.id))
+    : [];
+
+  const reports = (data.reports || []).filter(r => idSet.has(r.user?.id));
+
+  let privileges;
+  if (data.privileges) {
+    privileges = {};
+    for (const k of PRIVILEGE_KEYS) {
+      privileges[k] = (data.privileges[k] || []).filter(pid => idSet.has(pid));
+    }
+  } else {
+    privileges = buildEmptyPrivileges();
+  }
+
+  return {
+    congregation: data.congregation,
+    publishers: pubs,
+    addresses: addresses,
+    fsGroups: data.fsGroups || [],
+    attendance: data.attendance || { attendance: [], attendanceGroups: [] },
+    reports: reports,
+    notPublishers: data.notPublishers || [],
+    monthlyTotals: data.monthlyTotals || [],
+    privileges: privileges,
+    territories: data.territories || [],
+    territoryRecords: data.territoryRecords || [],
+  };
+}
+
+function buildFilename(pubs) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (pubs.length === 1) {
+    const last = (pubs[0].lastname || 'Unknown').replace(/\s+/g, '_');
+    const first = (pubs[0].firstname || '').replace(/\s+/g, '_');
+    return `Transfer_${last}_${first}_${today}.json`;
+  }
+  return `Transfer_${pubs.length}_Publishers_${today}.json`;
+}
 
 function prepareExport() {
   const selected = publishers.filter(p => selectedIds.has(p.id));
@@ -426,45 +502,20 @@ function prepareExport() {
   ).join('');
 }
 
-async function downloadExport() {
-  const btn = document.getElementById('btn-download');
-  btn.disabled = true;
-  btn.textContent = 'Generating...';
+function downloadExport() {
+  const filtered = filterExport(hourglassData, selectedIds);
+  const filename = buildFilename(filtered.publishers);
+  const json = JSON.stringify(filtered, null, 2);
 
-  try {
-    const resp = await fetch('/export', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        selected_ids: [...selectedIds],
-        data: hourglassData
-      })
-    });
-
-    if (!resp.ok) throw new Error('Export failed');
-
-    const disposition = resp.headers.get('Content-Disposition');
-    let filename = 'transfer_export.json';
-    if (disposition) {
-      const match = disposition.match(/filename="?([^"]+)"?/);
-      if (match) filename = match[1];
-    }
-
-    const blob = await resp.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  } catch (err) {
-    alert('Export error: ' + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Download JSON File';
-  }
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function resetApp() {
