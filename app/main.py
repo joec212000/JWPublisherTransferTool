@@ -24,16 +24,89 @@ class ExportRequest(BaseModel):
     data: dict[str, Any]
 
 
+PUBLISHER_ARRAY_FIELDS = ("permissionusergroups", "tags")
+
+# Every privilege key NW Scheduler expects in the privileges dict.
+PRIVILEGE_KEYS = (
+    "attendant", "aux_chairman", "cbs", "cbs_reader", "chairman",
+    "chairman2", "chairman3", "cleaning", "closeprayer", "conductFS",
+    "console", "dfg", "fm_discussion", "fs_assistant", "hh", "host",
+    "initcall", "interpreter", "lac", "localneeds", "mics", "mm_chairman",
+    "none", "openprayer", "prayer", "pt", "pt_out", "publicMinistry",
+    "reading", "rv", "security_attendant", "stage", "stream", "study",
+    "stutalk", "treasures", "video", "wm_chairman", "wm_reader",
+    "wt_conductor", "zoom_attendant",
+)
+
+
+def _sanitize_publisher(pub: dict[str, Any]) -> dict[str, Any]:
+    """Prepare a publisher record for NW Scheduler import.
+
+    - Ensures array fields are never null/missing (avoids C# ArgumentNullException)
+    - Removes emergencycontacts (NW Scheduler doesn't use this field on publishers)
+    """
+    out = dict(pub)
+    out.pop("emergencycontacts", None)
+    for field in PUBLISHER_ARRAY_FIELDS:
+        if not isinstance(out.get(field), list):
+            out[field] = []
+    return out
+
+
+def _build_empty_privileges() -> dict[str, list]:
+    return {k: [] for k in PRIVILEGE_KEYS}
+
+
+def _build_empty_attendance() -> dict[str, list]:
+    return {"attendance": [], "attendanceGroups": []}
+
+
 def filter_export(data: dict[str, Any], selected_ids: list[int]) -> dict[str, Any]:
-    """Return a copy of the Hourglass export containing only the selected publishers
-    and their associated field service reports."""
+    """Return an NW-Scheduler-compatible Hourglass export containing only the
+    selected publishers and their associated data."""
     selected_set = set(selected_ids)
+
+    publishers = [
+        _sanitize_publisher(p)
+        for p in data["publishers"]
+        if p["id"] in selected_set
+    ]
+
+    # Addresses referenced by selected publishers
+    needed_addr_ids = {p["address_id"] for p in publishers if p.get("address_id")}
+    if "addresses" in data:
+        addresses = [a for a in data["addresses"] if a["id"] in needed_addr_ids]
+    else:
+        addresses = []
+
+    # Reports belonging to selected publishers
+    reports = [
+        r for r in data.get("reports", [])
+        if r["user"]["id"] in selected_set
+    ]
+
+    # Privileges: filter to only selected publisher IDs, or empty
+    if "privileges" in data:
+        src_priv = data["privileges"]
+        privileges = {
+            k: [pid for pid in src_priv.get(k, []) if pid in selected_set]
+            for k in PRIVILEGE_KEYS
+        }
+    else:
+        privileges = _build_empty_privileges()
+
     return {
         "congregation": data["congregation"],
-        "publishers": [p for p in data["publishers"] if p["id"] in selected_set],
-        "reports": [
-            r for r in data.get("reports", []) if r["user"]["id"] in selected_set
-        ],
+        "publishers": publishers,
+        "addresses": addresses,
+        "fsGroups": data.get("fsGroups", []),
+        "attendance": data.get("attendance", _build_empty_attendance()),
+        "reports": reports,
+        "notPublishers": data.get("notPublishers", []),
+        "monthlyTotals": data.get("monthlyTotals", []),
+        "privileges": privileges,
+        "territories": data.get("territories", []),
+        "territoryRecords": data.get("territoryRecords", []),
     }
 
 
