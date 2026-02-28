@@ -1,1 +1,76 @@
-# JWPublisherTransferTool
+# JW Publisher Transfer Tool
+
+A web-based tool for extracting individual publisher records from an [Hourglass](https://www.hourglass-app.com/en/) JSON export so they can be transferred to another congregation using [NW Scheduler](https://nwscheduler.com/) or similar tools.
+
+## The Problem
+
+Hourglass exports **all** publisher records in a single JSON file. When you need to send just one publisher's card to another congregation, you'd have to manually locate and extract that publisher's data block plus their associated field service reports. This tool automates that process.
+
+## How It Works
+
+1. **Upload** your full Hourglass JSON export
+2. **Select** one or more publishers from a searchable, sortable list
+3. **Download** a filtered JSON file containing only the selected publishers and their reports
+
+The exported file preserves the original Hourglass format (congregation + publishers + reports) so it can be imported by the receiving congregation.
+
+## Quick Start
+
+### Prerequisites
+
+- Python 3.10+
+
+### Run Locally
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Start the server
+uvicorn app.main:app --reload
+
+# Open http://localhost:8000 in your browser
+```
+
+### Run with Docker
+
+```bash
+# Build the image
+docker build -t jw-publisher-transfer .
+
+# Run the container
+docker run -p 8000:8000 jw-publisher-transfer
+```
+
+Then visit [http://localhost:8000](http://localhost:8000).
+
+## Cloud Deployment
+
+The included `Dockerfile` makes this ready for deployment on any Docker-compatible platform:
+
+- [Railway](https://railway.app/)
+- [Render](https://render.com/)
+- [Fly.io](https://fly.io/)
+- Any cloud provider with container support
+
+## Project Structure
+
+```
+├── app/
+│   ├── __init__.py
+│   ├── main.py            # FastAPI app and export logic
+│   └── templates/
+│       └── index.html      # Single-page UI
+├── static/
+│   └── style.css           # Custom styles
+├── requirements.txt
+├── Dockerfile
+└── README.md
+```
+
+## Tech Stack
+
+- **FastAPI** -- Python web framework
+- **Tailwind CSS** -- Styling (via CDN)
+- **Vanilla JavaScript** -- Client-side interactivity
+- No database required -- fully stateless

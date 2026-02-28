@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JW Publisher Transfer Tool</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/static/style.css" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-200 shadow-sm">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex items-center gap-3">
+      <div class="w-10 h-10 bg-brand-600 rounded-lg flex items-center justify-center">
+        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold text-gray-900">Publisher Transfer Tool</h1>
+        <p class="text-sm text-gray-500">Export publisher records from Hourglass for transfer</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- Step Indicators -->
+  <div class="max-w-5xl mx-auto px-4 pt-6 pb-2">
+    <div class="flex items-center gap-2">
+      <div id="step-ind-1" class="step-indicator active flex items-center gap-2 px-4 py-2 rounded-full border-2 text-sm font-medium">
+        <span class="w-6 h-6 rounded-full border-2 border-current flex items-center justify-center text-xs font-bold">1</span>
+        Upload
+      </div>
+      <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+      </svg>
+      <div id="step-ind-2" class="step-indicator flex items-center gap-2 px-4 py-2 rounded-full border-2 border-gray-300 text-gray-400 text-sm font-medium">
+        <span class="w-6 h-6 rounded-full border-2 border-current flex items-center justify-center text-xs font-bold">2</span>
+        Select
+      </div>
+      <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+      </svg>
+      <div id="step-ind-3" class="step-indicator flex items-center gap-2 px-4 py-2 rounded-full border-2 border-gray-300 text-gray-400 text-sm font-medium">
+        <span class="w-6 h-6 rounded-full border-2 border-current flex items-center justify-center text-xs font-bold">3</span>
+        Export
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="max-w-5xl mx-auto px-4 py-4">
+
+    <!-- Step 1: Upload -->
+    <section id="step-upload" class="fade-in">
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <h2 class="text-lg font-semibold text-gray-900 mb-1">Upload Hourglass Export</h2>
+        <p class="text-sm text-gray-500 mb-6">Select or drag-and-drop the JSON file exported from Hourglass.</p>
+
+        <div id="drop-zone" class="drop-zone border-2 border-dashed border-gray-300 rounded-xl p-12 text-center cursor-pointer hover:border-brand-500">
+          <svg class="mx-auto w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          <p class="text-gray-600 font-medium">Drop your JSON file here</p>
+          <p class="text-sm text-gray-400 mt-1">or click to browse</p>
+          <input id="file-input" type="file" accept=".json" class="hidden" />
+        </div>
+
+        <div id="upload-error" class="hidden mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm"></div>
+      </div>
+    </section>
+
+    <!-- Step 2: Select Publishers -->
+    <section id="step-select" class="hidden fade-in">
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+
+        <!-- Congregation Info Bar -->
+        <div id="cong-info" class="mb-4 p-3 bg-brand-50 rounded-lg border border-brand-100 text-sm text-brand-700"></div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <h2 class="text-lg font-semibold text-gray-900">Select Publishers</h2>
+          <div class="flex items-center gap-3">
+            <div class="relative">
+              <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+              <input id="search-input" type="text" placeholder="Search by name..."
+                class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none w-64" />
+            </div>
+            <select id="filter-status" class="border border-gray-300 rounded-lg text-sm py-2 px-3 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">
+              <option value="">All statuses</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-4 mb-3 text-sm">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input id="select-all" type="checkbox" class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+            <span class="text-gray-600">Select all visible</span>
+          </label>
+          <span id="selection-count" class="text-gray-400">0 selected</span>
+        </div>
+
+        <!-- Publisher Table -->
+        <div class="border border-gray-200 rounded-lg overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-left">
+              <tr>
+                <th class="px-4 py-3 w-10"></th>
+                <th class="px-4 py-3 font-medium text-gray-600 cursor-pointer select-none" onclick="sortBy('name')">
+                  Name <span id="sort-name" class="text-gray-400">&#9650;</span>
+                </th>
+                <th class="px-4 py-3 font-medium text-gray-600 cursor-pointer select-none" onclick="sortBy('status')">
+                  Status <span id="sort-status" class="text-gray-400"></span>
+                </th>
+                <th class="px-4 py-3 font-medium text-gray-600 cursor-pointer select-none" onclick="sortBy('appt')">
+                  Appointment <span id="sort-appt" class="text-gray-400"></span>
+                </th>
+                <th class="px-4 py-3 font-medium text-gray-600">Reports</th>
+              </tr>
+            </thead>
+            <tbody id="publisher-list" class="divide-y divide-gray-100"></tbody>
+          </table>
+        </div>
+
+        <div class="flex items-center justify-between mt-6">
+          <button onclick="goToStep(1)"
+            class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+            &larr; Back
+          </button>
+          <button id="btn-export" onclick="goToStep(3)" disabled
+            class="px-6 py-2.5 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
+            Generate Export &rarr;
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 3: Export -->
+    <section id="step-export" class="hidden fade-in">
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        <h2 class="text-xl font-semibold text-gray-900 mb-2">Export Ready</h2>
+        <p id="export-summary" class="text-gray-500 mb-6"></p>
+
+        <div id="export-details" class="max-w-md mx-auto mb-6 text-left bg-gray-50 rounded-lg p-4 text-sm space-y-1"></div>
+
+        <div class="flex justify-center gap-3">
+          <button onclick="goToStep(2)"
+            class="px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+            &larr; Back to Selection
+          </button>
+          <button id="btn-download" onclick="downloadExport()"
+            class="px-6 py-2.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition">
+            Download JSON File
+          </button>
+        </div>
+
+        <button onclick="resetApp()" class="mt-4 text-sm text-brand-600 hover:text-brand-700 underline">
+          Start over with a new file
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="max-w-5xl mx-auto px-4 py-8 text-center text-xs text-gray-400">
+    JW Publisher Transfer Tool &middot; For transferring publisher records between congregation management tools
+  </footer>
+
+<script>
+let hourglassData = null;
+let publishers = [];
+let reportCounts = {};
+let selectedIds = new Set();
+let currentSort = { key: 'name', asc: true };
+
+// --- File Upload ---
+
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files.length) handleFile(fileInput.files[0]); });
+
+function handleFile(file) {
+  const errBox = document.getElementById('upload-error');
+  errBox.classList.add('hidden');
+
+  if (!file.name.endsWith('.json')) {
+    errBox.textContent = 'Please select a valid JSON file.';
+    errBox.classList.remove('hidden');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.congregation || !data.publishers) {
+        throw new Error('Missing required fields: congregation and publishers.');
+      }
+      hourglassData = data;
+      loadPublishers(data);
+      goToStep(2);
+    } catch (err) {
+      errBox.textContent = 'Invalid Hourglass export: ' + err.message;
+      errBox.classList.remove('hidden');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// --- Publisher Loading ---
+
+function loadPublishers(data) {
+  publishers = data.publishers.map(p => ({
+    id: p.id,
+    firstname: p.firstname || '',
+    lastname: p.lastname || '',
+    status: p.status || 'Unknown',
+    appt: p.appt || '—',
+    fullName: `${p.lastname}, ${p.firstname}${p.middlename ? ' ' + p.middlename : ''}${p.suffix ? ' ' + p.suffix : ''}`
+  }));
+
+  reportCounts = {};
+  (data.reports || []).forEach(r => {
+    const uid = r.user?.id;
+    if (uid) reportCounts[uid] = (reportCounts[uid] || 0) + 1;
+  });
+
+  const statuses = [...new Set(publishers.map(p => p.status))].sort();
+  const sel = document.getElementById('filter-status');
+  sel.innerHTML = '<option value="">All statuses</option>';
+  statuses.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = s;
+    sel.appendChild(opt);
+  });
+
+  const congInfo = document.getElementById('cong-info');
+  const c = data.congregation;
+  congInfo.innerHTML = `<strong>${c.name}</strong> &middot; #${c.number} &middot; ${publishers.length} publishers &middot; ${(data.reports || []).length} reports`;
+
+  sortPublishers();
+  renderPublishers();
+}
+
+// --- Sorting ---
+
+function sortBy(key) {
+  if (currentSort.key === key) {
+    currentSort.asc = !currentSort.asc;
+  } else {
+    currentSort = { key, asc: true };
+  }
+  document.querySelectorAll('[id^="sort-"]').forEach(el => el.textContent = '');
+  const arrow = currentSort.asc ? '\u25B2' : '\u25BC';
+  const sortEl = document.getElementById('sort-' + key);
+  if (sortEl) sortEl.textContent = arrow;
+
+  sortPublishers();
+  renderPublishers();
+}
+
+function sortPublishers() {
+  const k = currentSort.key;
+  const dir = currentSort.asc ? 1 : -1;
+  publishers.sort((a, b) => {
+    let va, vb;
+    if (k === 'name') { va = a.fullName.toLowerCase(); vb = b.fullName.toLowerCase(); }
+    else if (k === 'status') { va = a.status.toLowerCase(); vb = b.status.toLowerCase(); }
+    else if (k === 'appt') { va = a.appt.toLowerCase(); vb = b.appt.toLowerCase(); }
+    else { va = ''; vb = ''; }
+    return va < vb ? -dir : va > vb ? dir : 0;
+  });
+}
+
+// --- Filtering & Rendering ---
+
+function getVisiblePublishers() {
+  const q = document.getElementById('search-input').value.toLowerCase().trim();
+  const statusFilter = document.getElementById('filter-status').value;
+  return publishers.filter(p => {
+    if (q) {
+      const haystack = `${p.firstname} ${p.lastname} ${p.fullName}`.toLowerCase();
+      const match = q.split(/\s+/).every(term => haystack.includes(term));
+      if (!match) return false;
+    }
+    if (statusFilter && p.status !== statusFilter) return false;
+    return true;
+  });
+}
+
+function renderPublishers() {
+  const tbody = document.getElementById('publisher-list');
+  const visible = getVisiblePublishers();
+
+  tbody.innerHTML = visible.map(p => `
+    <tr class="publisher-row ${selectedIds.has(p.id) ? 'selected' : ''}" onclick="toggleSelect(${p.id})">
+      <td class="px-4 py-3">
+        <input type="checkbox" ${selectedIds.has(p.id) ? 'checked' : ''}
+          class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" data-publisher-id="${p.id}" />
+      </td>
+      <td class="px-4 py-3 font-medium text-gray-900">${escapeHtml(p.fullName)}</td>
+      <td class="px-4 py-3">
+        <span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(p.status)}">
+          ${escapeHtml(p.status)}
+        </span>
+      </td>
+      <td class="px-4 py-3 text-gray-600">${escapeHtml(p.appt)}</td>
+      <td class="px-4 py-3 text-gray-500">${reportCounts[p.id] || 0}</td>
+    </tr>
+  `).join('');
+
+  updateSelectionUI();
+}
+
+function statusColor(status) {
+  if (status.includes('Regular Pioneer')) return 'bg-purple-100 text-purple-700';
+  if (status.includes('Auxiliary Pioneer')) return 'bg-blue-100 text-blue-700';
+  if (status.includes('Baptized')) return 'bg-green-100 text-green-700';
+  if (status.includes('Unbaptized')) return 'bg-yellow-100 text-yellow-700';
+  return 'bg-gray-100 text-gray-600';
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// --- Selection ---
+
+function toggleSelect(id) {
+  if (selectedIds.has(id)) selectedIds.delete(id);
+  else selectedIds.add(id);
+  renderPublishers();
+}
+
+document.getElementById('select-all').addEventListener('change', function () {
+  const visible = getVisiblePublishers();
+  if (this.checked) {
+    visible.forEach(p => selectedIds.add(p.id));
+  } else {
+    visible.forEach(p => selectedIds.delete(p.id));
+  }
+  renderPublishers();
+});
+
+function updateSelectionUI() {
+  const count = selectedIds.size;
+  document.getElementById('selection-count').textContent = `${count} selected`;
+  document.getElementById('btn-export').disabled = count === 0;
+
+  const visible = getVisiblePublishers();
+  const allChecked = visible.length > 0 && visible.every(p => selectedIds.has(p.id));
+  document.getElementById('select-all').checked = allChecked;
+}
+
+document.getElementById('search-input').addEventListener('input', renderPublishers);
+document.getElementById('filter-status').addEventListener('change', renderPublishers);
+
+// --- Step Navigation ---
+
+function goToStep(step) {
+  document.getElementById('step-upload').classList.toggle('hidden', step !== 1);
+  document.getElementById('step-select').classList.toggle('hidden', step !== 2);
+  document.getElementById('step-export').classList.toggle('hidden', step !== 3);
+
+  for (let i = 1; i <= 3; i++) {
+    const ind = document.getElementById('step-ind-' + i);
+    ind.classList.remove('active', 'completed');
+    ind.classList.add(i < step ? 'completed' : i === step ? 'active' : '');
+    if (i > step) {
+      ind.classList.add('border-gray-300', 'text-gray-400');
+      ind.classList.remove('border-brand-600');
+    } else {
+      ind.classList.remove('border-gray-300', 'text-gray-400');
+    }
+  }
+
+  if (step === 3) prepareExport();
+}
+
+// --- Export ---
+
+function prepareExport() {
+  const selected = publishers.filter(p => selectedIds.has(p.id));
+  const reportCount = selected.reduce((sum, p) => sum + (reportCounts[p.id] || 0), 0);
+
+  document.getElementById('export-summary').textContent =
+    `${selected.length} publisher${selected.length !== 1 ? 's' : ''} with ${reportCount} field service report${reportCount !== 1 ? 's' : ''} ready to export.`;
+
+  const details = document.getElementById('export-details');
+  details.innerHTML = selected.map(p =>
+    `<div class="flex justify-between">
+       <span class="text-gray-700">${escapeHtml(p.fullName)}</span>
+       <span class="text-gray-400">${reportCounts[p.id] || 0} reports</span>
+     </div>`
+  ).join('');
+}
+
+async function downloadExport() {
+  const btn = document.getElementById('btn-download');
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+
+  try {
+    const resp = await fetch('/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        selected_ids: [...selectedIds],
+        data: hourglassData
+      })
+    });
+
+    if (!resp.ok) throw new Error('Export failed');
+
+    const disposition = resp.headers.get('Content-Disposition');
+    let filename = 'transfer_export.json';
+    if (disposition) {
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      if (match) filename = match[1];
+    }
+
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert('Export error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Download JSON File';
+  }
+}
+
+function resetApp() {
+  hourglassData = null;
+  publishers = [];
+  reportCounts = {};
+  selectedIds.clear();
+  fileInput.value = '';
+  document.getElementById('search-input').value = '';
+  goToStep(1);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+/* Custom overrides beyond Tailwind */
+
+.drop-zone {
+    transition: border-color 0.2s, background-color 0.2s;
+}
+
+.drop-zone.dragover {
+    border-color: #6366f1;
+    background-color: #eef2ff;
+}
+
+.publisher-row {
+    transition: background-color 0.15s;
+}
+
+.publisher-row:hover {
+    background-color: #f8fafc;
+}
+
+.publisher-row.selected {
+    background-color: #eef2ff;
+}
+
+.step-indicator {
+    transition: all 0.3s;
+}
+
+.step-indicator.active {
+    color: #4f46e5;
+    border-color: #4f46e5;
+    background-color: #eef2ff;
+}
+
+.step-indicator.completed {
+    color: #ffffff;
+    border-color: #4f46e5;
+    background-color: #4f46e5;
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
