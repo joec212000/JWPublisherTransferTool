@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>JW Publisher Transfer Tool</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link rel="stylesheet" href="/static/style.css" />
   <script>
     tailwind.config = {
@@ -176,6 +177,28 @@
         <button onclick="resetApp()" class="mt-4 text-sm text-brand-600 hover:text-brand-700 underline">
           Start over with a new file
         </button>
+      </div>
+
+      <!-- Letters of Introduction -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-1">Letters of Introduction</h2>
+        <p class="text-sm text-gray-500 mb-4">Generate a PDF letter of introduction for each publisher. Details are pre-filled from the Hourglass data -- fill in the rest and adjust the letter text as needed.</p>
+
+        <!-- Sending congregation letterhead settings -->
+        <div class="grid sm:grid-cols-2 gap-3 mb-6 p-4 bg-gray-50 rounded-lg">
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Sending Congregation</label>
+            <input id="loi-cong-name" type="text" oninput="refreshAllLetters()"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Congregation Address (letterhead)</label>
+            <textarea id="loi-cong-address" rows="2" oninput="refreshAllLetters()"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"></textarea>
+          </div>
+        </div>
+
+        <div id="loi-cards" class="space-y-4"></div>
       </div>
     </section>
   </main>
@@ -397,7 +420,8 @@ function goToStep(step) {
   for (let i = 1; i <= 3; i++) {
     const ind = document.getElementById('step-ind-' + i);
     ind.classList.remove('active', 'completed');
-    ind.classList.add(i < step ? 'completed' : i === step ? 'active' : '');
+    if (i < step) ind.classList.add('completed');
+    else if (i === step) ind.classList.add('active');
     if (i > step) {
       ind.classList.add('border-gray-300', 'text-gray-400');
       ind.classList.remove('border-brand-600');
@@ -499,6 +523,8 @@ function prepareExport() {
        <span class="text-gray-400">${reportCounts[p.id] || 0} reports</span>
      </div>`
   ).join('');
+
+  prepareLetterSection(selected);
 }
 
 function downloadExport() {
@@ -517,13 +543,396 @@ function downloadExport() {
   URL.revokeObjectURL(url);
 }
 
+// --- Letters of Introduction (fully client-side PDF generation) ---
+
+let loiState = {};
+
+function cleanCongName(name) {
+  // "Chillum - MD (USA)" -> "Chillum"
+  return (name || '').replace(/\s*-\s*[A-Z]{2}\s*\(.*\)\s*$/, '').trim();
+}
+
+function formatDateUS(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return iso;
+  return `${m}/${d}/${y}`;
+}
+
+function todayLong() {
+  return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function getFullPublisher(id) {
+  return hourglassData.publishers.find(p => p.id === id);
+}
+
+function getPublisherAddress(pub) {
+  if (!pub.address_id || !Array.isArray(hourglassData.addresses)) return null;
+  return hourglassData.addresses.find(a => a.id === pub.address_id) || null;
+}
+
+function buildContactLines(pub) {
+  const lines = [];
+  if (pub.email) lines.push(pub.email);
+  if (pub.cellphone) lines.push(pub.cellphone);
+  if (pub.homephone) lines.push(pub.homephone);
+  const addr = getPublisherAddress(pub);
+  if (addr) {
+    if (addr.line1) lines.push(addr.line1);
+    if (addr.line2) lines.push(addr.line2);
+    const cityLine = [addr.city, addr.state, addr.postalcode].filter(Boolean).join(', ');
+    if (cityLine) lines.push(cityLine);
+  }
+  return lines;
+}
+
+const PIONEER_PHRASE = {
+  'Regular Pioneer': 'a Regular Pioneer',
+  'Special Pioneer': 'a Special Pioneer',
+  'Continuous Auxiliary Pioneer': 'a Continuous Auxiliary Pioneer',
+  'Auxiliary Pioneer': 'an Auxiliary Pioneer',
+};
+
+function buildRecommendation(pub, st) {
+  const first = pub.firstname || '';
+  const female = (pub.sex === 'Female');
+  const He = female ? 'She' : 'He', he = female ? 'she' : 'he';
+  const his = female ? 'her' : 'his';
+
+  const status = st.status || '';
+  const role = st.role || 'None';
+  const activity = st.activity || 'Exemplary';
+
+  // Standing scenarios that override the normal recommendation
+  if (activity === 'Inactive') {
+    return `Currently ${his} circumstances have limited ${his} recent share in the ministry. ${He} has not been active in the ministry recently and could use some loving shepherding and encouragement.`;
+  }
+  if (activity === 'Irregular') {
+    return `${first} has been somewhat irregular in the field ministry and congregation meetings recently and would benefit from continued loving encouragement and shepherding.`;
+  }
+
+  const exemplary = activity === 'Exemplary';
+  const standing = exemplary ? ' and is exemplary' : ' and is in good standing';
+  const sharePhrase = exemplary ? 'an exemplary' : 'a fine';
+
+  const pioneer = PIONEER_PHRASE[status] || '';
+  const roleName = role === 'Elder' ? 'an Elder'
+    : role === 'Ministerial Servant' ? 'a Ministerial Servant' : '';
+  const continueAs = roleName || pioneer;
+
+  // Pioneer and an appointment
+  if (pioneer && roleName) {
+    return `${He} is serving as ${pioneer} and ${roleName}${standing}. It is recommended ${he} continue to serve as ${continueAs}.`;
+  }
+  // Appointed servant who is not a pioneer
+  if (roleName) {
+    return `${He} is serving as ${roleName}${standing}. It is recommended ${he} continue to serve as ${continueAs}.`;
+  }
+  // Pioneer only
+  if (pioneer) {
+    return `${first} serves as ${pioneer} and maintains ${sharePhrase} share in the ministry and congregation activity. It is recommended that ${he} continue to serve as ${pioneer}.`;
+  }
+  // Unbaptized publisher
+  if (status === 'Unbaptized Publisher') {
+    return `${first} is an unbaptized publisher and is in good standing as ${he} progresses toward dedication and baptism.`;
+  }
+  // Baptized publisher
+  if (exemplary) {
+    return `${first} is a baptized publisher and is exemplary in the ministry and ${his} share of congregation activities. ${He} comments regularly and participates in the CLM student assignments.`;
+  }
+  return `${first} is a baptized publisher in good standing.`;
+}
+
+function buildSpeakerParagraph(pub, st) {
+  if (!st.publicSpeaker) return '';
+  const last = pub.lastname || '';
+  let text = '';
+  if (st.role === 'Elder') {
+    text = `Brother ${last} is an approved public speaker for outgoing talks and handles CLM assignments for qualified Elders.`;
+    if (st.circuitSpeaker) {
+      text += ' He has also worked in oversight on the circuit and regional level and has handled teaching assignments at assemblies and conventions.';
+    }
+  } else {
+    text = `Brother ${last} is an approved public speaker, having developed and given public talks in our congregation.`;
+  }
+  return text;
+}
+
+function buildLetterText(pub, st) {
+  const congName = document.getElementById('loi-cong-name').value.trim();
+  const first = pub.firstname || '';
+  const fullName = `${pub.firstname || ''} ${pub.lastname || ''}`.trim();
+
+  const paragraphs = [];
+  paragraphs.push('Dear Brothers,');
+
+  let intro = `This letter is to introduce ${fullName}, who is transferring from the ${congName} Congregation to the ${st.newCong || '________'} Congregation. `;
+  intro += buildRecommendation(pub, st);
+  paragraphs.push(intro);
+
+  const speaker = buildSpeakerParagraph(pub, st);
+  if (speaker) paragraphs.push(speaker);
+
+  if (st.notes && st.notes.trim()) paragraphs.push(st.notes.trim());
+
+  const female = (pub.sex === 'Female');
+  const him = female ? 'her' : 'him', she = female ? 'she' : 'he';
+  paragraphs.push(`We will sincerely miss ${first} and turn ${him} over to your loving care and oversight. We know ${she} will be a great addition to your congregation.`);
+
+  const details = [];
+  if (pub.birth) details.push(`Date of birth: ${formatDateUS(pub.birth)}`);
+  if (pub.baptism) details.push(`Date of baptism: ${formatDateUS(pub.baptism)}`);
+  if (pub.pioneerid) details.push(`Pioneer ID: ${pub.pioneerid}`);
+  const contact = buildContactLines(pub);
+  if (contact.length) {
+    details.push('Contact Info:');
+    details.push(...contact);
+  }
+  if (details.length) paragraphs.push(details.join('\n'));
+
+  paragraphs.push(`Please accept our warm Christian love,\nThe Body of Elders\n${congName} Congregation`);
+
+  return paragraphs.join('\n\n');
+}
+
+function prepareLetterSection(selected) {
+  const c = hourglassData.congregation || {};
+  const nameInput = document.getElementById('loi-cong-name');
+  const addrInput = document.getElementById('loi-cong-address');
+  if (!nameInput.value) nameInput.value = cleanCongName(c.name);
+  if (!addrInput.value && c.address) addrInput.value = c.address.trim();
+
+  // Drop state for unselected publishers, init state for new ones
+  const selectedSet = new Set(selected.map(p => p.id));
+  for (const id of Object.keys(loiState)) {
+    if (!selectedSet.has(Number(id))) delete loiState[id];
+  }
+  for (const p of selected) {
+    if (!loiState[p.id]) {
+      const pub = getFullPublisher(p.id);
+      loiState[p.id] = {
+        newCong: '',
+        status: pub.status || 'Baptized Publisher',
+        role: normalizeRole(pub.appt),
+        activity: 'Exemplary',
+        publicSpeaker: false,
+        circuitSpeaker: false,
+        notes: '',
+        letterText: null,
+      };
+    }
+  }
+
+  renderLetterCards(selected);
+}
+
+const STATUS_OPTIONS = [
+  'Regular Pioneer',
+  'Continuous Auxiliary Pioneer',
+  'Auxiliary Pioneer',
+  'Special Pioneer',
+  'Baptized Publisher',
+  'Unbaptized Publisher',
+];
+
+const ROLE_OPTIONS = ['None', 'Elder', 'Ministerial Servant'];
+
+const ACTIVITY_OPTIONS = [
+  ['Exemplary', 'Exemplary'],
+  ['Good', 'In good standing'],
+  ['Irregular', 'Irregular (needs encouragement)'],
+  ['Inactive', 'Inactive (needs shepherding)'],
+];
+
+function normalizeRole(appt) {
+  if (appt === 'Elder') return 'Elder';
+  if (appt === 'MS' || appt === 'Ministerial Servant') return 'Ministerial Servant';
+  return 'None';
+}
+
+function buildOptions(values, current) {
+  // values: array of strings OR [value, label] pairs
+  const opts = values.map(v => Array.isArray(v) ? v : [v, v]);
+  // Ensure the current value is present even if not in the predefined list
+  if (current && !opts.some(([val]) => val === current)) {
+    opts.unshift([current, current]);
+  }
+  return opts.map(([val, label]) =>
+    `<option value="${escapeHtml(val)}" ${val === current ? 'selected' : ''}>${escapeHtml(label)}</option>`
+  ).join('');
+}
+
+function renderLetterCards(selected) {
+  const container = document.getElementById('loi-cards');
+  container.innerHTML = selected.map(p => {
+    const pub = getFullPublisher(p.id);
+    const st = loiState[p.id];
+    const female = pub.sex === 'Female';
+    return `
+    <div class="border border-gray-200 rounded-lg p-4" id="loi-card-${p.id}">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-gray-900">${escapeHtml(p.fullName)}</h3>
+        <span class="text-xs text-gray-400">${escapeHtml(pub.status || '')}${pub.appt ? ' · ' + escapeHtml(pub.appt) : ''}</span>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Transferring to (new congregation)</label>
+          <input type="text" value="${escapeHtml(st.newCong)}" placeholder="e.g. Accokeek"
+            oninput="updateLoi(${p.id}, 'newCong', this.value)"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Standing in the ministry</label>
+          <select onchange="updateLoi(${p.id}, 'activity', this.value)"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">
+            ${buildOptions(ACTIVITY_OPTIONS, st.activity)}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Publisher status</label>
+          <select onchange="updateLoi(${p.id}, 'status', this.value)"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">
+            ${buildOptions(STATUS_OPTIONS, st.status)}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Appointment / servant role</label>
+          <select onchange="updateLoi(${p.id}, 'role', this.value)"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">
+            ${buildOptions(ROLE_OPTIONS, st.role)}
+          </select>
+        </div>
+      </div>
+      ${!female ? `
+      <div class="flex flex-wrap items-center gap-6 mb-3 text-sm">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" ${st.publicSpeaker ? 'checked' : ''}
+            onchange="updateLoi(${p.id}, 'publicSpeaker', this.checked)"
+            class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+          <span class="text-gray-600">Approved public speaker</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" ${st.circuitSpeaker ? 'checked' : ''}
+            onchange="updateLoi(${p.id}, 'circuitSpeaker', this.checked)"
+            class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+          <span class="text-gray-600">Circuit / regional teaching assignments</span>
+        </label>
+      </div>` : ''}
+      <div class="mb-3">
+        <label class="block text-xs font-medium text-gray-600 mb-1">Additional notes (included as a paragraph in the letter)</label>
+        <textarea rows="2" placeholder="Any personal circumstances, history with the congregation, shepherding suggestions..."
+          oninput="updateLoi(${p.id}, 'notes', this.value)"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">${escapeHtml(st.notes)}</textarea>
+      </div>
+      <div class="mb-3">
+        <div class="flex items-center justify-between mb-1">
+          <label class="block text-xs font-medium text-gray-600">Letter text (editable -- changing the fields above regenerates it)</label>
+          <button onclick="regenerateLetter(${p.id})" class="text-xs text-brand-600 hover:text-brand-700 underline">Regenerate</button>
+        </div>
+        <textarea id="loi-text-${p.id}" rows="12"
+          oninput="loiState[${p.id}].letterText = this.value"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"></textarea>
+      </div>
+      <div class="text-right">
+        <button onclick="downloadLetterPdf(${p.id})"
+          class="px-5 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition">
+          Download Letter PDF
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Populate letter textareas (kept out of template string to avoid HTML escaping issues)
+  for (const p of selected) {
+    const st = loiState[p.id];
+    if (st.letterText === null) st.letterText = buildLetterText(getFullPublisher(p.id), st);
+    document.getElementById(`loi-text-${p.id}`).value = st.letterText;
+  }
+}
+
+function updateLoi(id, field, value) {
+  loiState[id][field] = value;
+  regenerateLetter(id);
+}
+
+function regenerateLetter(id) {
+  const st = loiState[id];
+  st.letterText = buildLetterText(getFullPublisher(id), st);
+  const ta = document.getElementById(`loi-text-${id}`);
+  if (ta) ta.value = st.letterText;
+}
+
+function refreshAllLetters() {
+  for (const id of Object.keys(loiState)) regenerateLetter(Number(id));
+}
+
+function downloadLetterPdf(id) {
+  const pub = getFullPublisher(id);
+  const st = loiState[id];
+  const congName = document.getElementById('loi-cong-name').value.trim();
+  const congAddress = document.getElementById('loi-cong-address').value.trim();
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 72;
+  const maxWidth = pageWidth - margin * 2;
+  let y = margin;
+
+  // Letterhead
+  doc.setFont('times', 'bold');
+  doc.setFontSize(14);
+  doc.text(congName.toUpperCase() + ' CONGREGATION', pageWidth / 2, y, { align: 'center' });
+  y += 18;
+  doc.setFont('times', 'normal');
+  doc.setFontSize(11);
+  for (const line of congAddress.split('\n').map(l => l.trim()).filter(Boolean)) {
+    doc.text(line, pageWidth / 2, y, { align: 'center' });
+    y += 14;
+  }
+  y += 6;
+  doc.setLineWidth(1);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 28;
+
+  // Date
+  doc.setFontSize(12);
+  doc.text(todayLong(), margin, y);
+  y += 28;
+
+  // Body
+  const paragraphs = st.letterText.split('\n\n');
+  for (const para of paragraphs) {
+    const lines = doc.splitTextToSize(para, maxWidth);
+    for (const line of lines) {
+      if (y > pageHeight - margin) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(line, margin, y);
+      y += 16;
+    }
+    y += 12;
+  }
+
+  const last = (pub.lastname || 'Unknown').replace(/\s+/g, '_');
+  const first = (pub.firstname || '').replace(/\s+/g, '_');
+  doc.save(`Letter_of_Introduction_${last}_${first}.pdf`);
+}
+
 function resetApp() {
   hourglassData = null;
   publishers = [];
   reportCounts = {};
   selectedIds.clear();
+  loiState = {};
   fileInput.value = '';
   document.getElementById('search-input').value = '';
+  document.getElementById('loi-cong-name').value = '';
+  document.getElementById('loi-cong-address').value = '';
+  document.getElementById('loi-cards').innerHTML = '';
   goToStep(1);
 }
 </script>
