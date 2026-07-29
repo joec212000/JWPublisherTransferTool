@@ -639,9 +639,16 @@ function buildRecommendation(pub, st) {
   }
   // Baptized publisher
   if (exemplary) {
-    return `${first} is a baptized publisher and is exemplary in the ministry and ${his} share of congregation activities. ${He} comments regularly and participates in the CLM student assignments.`;
+    return `${first} is a baptized publisher and is exemplary in the ministry and ${his} share of congregation activities.`;
   }
   return `${first} is a baptized publisher in good standing.`;
+}
+
+function buildClmSentence(pub, st) {
+  if (!st.clm) return '';
+  const female = (pub.sex === 'Female');
+  const He = female ? 'She' : 'He';
+  return `${He} comments regularly at the meetings and participates in the CLM student assignments.`;
 }
 
 function buildSpeakerParagraph(pub, st) {
@@ -669,6 +676,8 @@ function buildLetterText(pub, st) {
 
   let intro = `This letter is to introduce ${fullName}, who is transferring from the ${congName} Congregation to the ${st.newCong || '________'} Congregation. `;
   intro += buildRecommendation(pub, st);
+  const clm = buildClmSentence(pub, st);
+  if (clm) intro += ' ' + clm;
   paragraphs.push(intro);
 
   const speaker = buildSpeakerParagraph(pub, st);
@@ -716,6 +725,7 @@ function prepareLetterSection(selected) {
         status: pub.status || 'Baptized Publisher',
         role: normalizeRole(pub.appt),
         activity: 'Exemplary',
+        clm: true,
         publicSpeaker: false,
         circuitSpeaker: false,
         notes: '',
@@ -803,6 +813,14 @@ function renderLetterCards(selected) {
             ${buildOptions(ROLE_OPTIONS, st.role)}
           </select>
         </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-6 mb-3 text-sm">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" ${st.clm ? 'checked' : ''}
+            onchange="updateLoi(${p.id}, 'clm', this.checked)"
+            class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+          <span class="text-gray-600">Comments at meetings &amp; participates in CLM student assignments</span>
+        </label>
       </div>
       ${!female ? `
       <div class="flex flex-wrap items-center gap-6 mb-3 text-sm">
