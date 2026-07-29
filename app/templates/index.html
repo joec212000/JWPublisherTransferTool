@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>JW Publisher Transfer Tool</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="/static/vendor/tailwind.js"></script>
+  <script src="/static/vendor/jspdf.umd.min.js"></script>
   <link rel="stylesheet" href="/static/style.css" />
   <script>
     tailwind.config = {
@@ -289,7 +289,7 @@ function loadPublishers(data) {
 
   const congInfo = document.getElementById('cong-info');
   const c = data.congregation;
-  congInfo.innerHTML = `<strong>${c.name}</strong> &middot; #${c.number} &middot; ${publishers.length} publishers &middot; ${(data.reports || []).length} reports`;
+  congInfo.innerHTML = `<strong>${escapeHtml(c.name)}</strong> &middot; #${escapeHtml(c.number)} &middot; ${publishers.length} publishers &middot; ${(data.reports || []).length} reports`;
 
   sortPublishers();
   renderPublishers();
@@ -374,9 +374,12 @@ function statusColor(status) {
 }
 
 function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // --- Selection ---
