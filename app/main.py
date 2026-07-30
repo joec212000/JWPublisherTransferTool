@@ -56,3 +56,8 @@ async def add_security_headers(request: Request, call_next):
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+
+@app.get("/help", response_class=HTMLResponse)
+async def help_page(request: Request):
+    return templates.TemplateResponse("help.html", {"request": request})

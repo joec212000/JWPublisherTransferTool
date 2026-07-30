@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Guide &middot; JW Publisher Transfer Tool</title>
+  <script src="/static/vendor/tailwind.js"></script>
+  <link rel="stylesheet" href="/static/style.css" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
+    <div class="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
+      <div class="w-10 h-10 bg-brand-600 rounded-lg flex items-center justify-center">
+        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold text-gray-900">User Guide</h1>
+        <p class="text-sm text-gray-500">How to use the Publisher Transfer Tool</p>
+      </div>
+      <a href="/"
+        class="ml-auto flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Back to App
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-8">
+
+    <!-- Intro -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+      <h2 class="text-2xl font-bold text-gray-900 mb-2">Welcome</h2>
+      <p class="text-gray-600 leading-relaxed">
+        The Publisher Transfer Tool helps you take a full congregation export from
+        <a href="https://www.hourglass-app.com/en/" class="text-brand-600 hover:underline" target="_blank" rel="noopener">Hourglass</a>
+        and pull out just the publisher(s) you need &mdash; producing a clean JSON file that can be imported into
+        <a href="https://nwscheduler.com/" class="text-brand-600 hover:underline" target="_blank" rel="noopener">New World Scheduler</a>
+        (or a similar program) at the receiving congregation. It can also generate a printable
+        <strong>Letter of Introduction</strong> PDF for each publisher.
+      </p>
+    </div>
+
+    <!-- Table of Contents -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-3">Contents</h2>
+      <ol class="space-y-1.5 text-sm">
+        <li><a href="#privacy" class="text-brand-600 hover:underline">1. Your privacy &mdash; how your data is handled</a></li>
+        <li><a href="#export-hourglass" class="text-brand-600 hover:underline">2. Getting your export file from Hourglass</a></li>
+        <li><a href="#step1" class="text-brand-600 hover:underline">3. Step 1 &mdash; Upload the file</a></li>
+        <li><a href="#step2" class="text-brand-600 hover:underline">4. Step 2 &mdash; Select publishers</a></li>
+        <li><a href="#step3" class="text-brand-600 hover:underline">5. Step 3 &mdash; Download the transfer file</a></li>
+        <li><a href="#letters" class="text-brand-600 hover:underline">6. Letters of Introduction</a></li>
+        <li><a href="#import" class="text-brand-600 hover:underline">7. Importing into New World Scheduler</a></li>
+        <li><a href="#faq" class="text-brand-600 hover:underline">8. Troubleshooting &amp; FAQ</a></li>
+      </ol>
+    </div>
+
+    <!-- 1. Privacy -->
+    <section id="privacy" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 scroll-mt-24">
+      <h2 class="text-xl font-bold text-gray-900 mb-3">1. Your privacy &mdash; how your data is handled</h2>
+      <div class="p-4 bg-green-50 border border-green-200 rounded-lg mb-4">
+        <p class="text-sm text-green-800">
+          <strong>Everything happens on your own computer, inside your browser.</strong>
+          The publisher information in your file &mdash; names, addresses, phone numbers, dates,
+          field service reports &mdash; is never uploaded or sent anywhere. Nothing is stored on a server.
+        </p>
+      </div>
+      <p class="text-gray-600 leading-relaxed">
+        When you upload a file, it is read and processed locally. When you download a transfer file or a
+        letter PDF, it is created right there in your browser. If you close or refresh the page, all the
+        loaded data is cleared. Because of this, you can use the tool with confidence that congregation
+        information stays private.
+      </p>
+    </section>
+
+    <!-- 2. Getting the export -->
+    <section id="export-hourglass" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 scroll-mt-24">
+      <h2 class="text-xl font-bold text-gray-900 mb-3">2. Getting your export file from Hourglass</h2>
+      <p class="text-gray-600 leading-relaxed mb-3">
+        Before using this tool you need the full congregation data exported from Hourglass as a
+        <strong>JSON</strong> file. In Hourglass, use the data export option to download your congregation
+        data in JSON format and save it somewhere you can find it (for example, your Downloads folder).
+      </p>
+      <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+        <p class="text-sm text-amber-800">
+          <strong>Note:</strong> The file you download from Hourglass contains <em>every</em> publisher in
+          your congregation. That is expected &mdash; this tool is what narrows it down to only the person
+          (or people) you want to transfer.
+        </p>
+      </div>
+    </section>
+
+    <!-- 3. Step 1 -->
+    <section id="step1" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 scroll-mt-24">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-sm">1</span>
+        <h2 class="text-xl font-bold text-gray-900">Step 1 &mdash; Upload the file</h2>
+      </div>
+      <p class="text-gray-600 leading-relaxed mb-4">
+        On the main page you'll see an <strong>Upload Hourglass Export</strong> box with a dashed drop area.
+      </p>
+      <ul class="space-y-3 text-gray-600">
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Drag and drop</strong> your JSON file onto the dashed box, <em>or</em></span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Click the box</strong> (&ldquo;or click to browse&rdquo;) to open a file picker, then choose your JSON file.</span>
+        </li>
+      </ul>
+      <p class="text-gray-600 leading-relaxed mt-4">
+        As soon as a valid file is loaded, the tool moves you to <strong>Step 2</strong> automatically.
+        If you pick the wrong kind of file, a red message appears explaining the problem &mdash; just choose
+        the correct <code class="px-1 py-0.5 bg-gray-100 rounded text-sm">.json</code> file and try again.
+      </p>
+    </section>
+
+    <!-- 4. Step 2 -->
+    <section id="step2" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 scroll-mt-24">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-sm">2</span>
+        <h2 class="text-xl font-bold text-gray-900">Step 2 &mdash; Select publishers</h2>
+      </div>
+      <p class="text-gray-600 leading-relaxed mb-4">
+        This screen lists every publisher in the file. A blue bar at the top confirms which congregation was
+        loaded and how many publishers and reports it contains.
+      </p>
+
+      <h3 class="font-semibold text-gray-800 mt-4 mb-2">Finding the right person</h3>
+      <ul class="space-y-3 text-gray-600">
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Search box:</strong> Start typing a name. It matches first name, last name, or both
+          (for example, typing <code class="px-1 py-0.5 bg-gray-100 rounded text-sm">joe gills</code> finds &ldquo;Gills, Joe&rdquo;).</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Status filter:</strong> The dropdown next to the search box lets you show only a
+          certain type (for example, only Regular Pioneers).</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Sort:</strong> Click the <strong>Name</strong>, <strong>Status</strong>, or
+          <strong>Appointment</strong> column headings to sort the list. Click the same heading again to
+          reverse the order (the small arrow shows the direction).</span>
+        </li>
+      </ul>
+
+      <h3 class="font-semibold text-gray-800 mt-5 mb-2">Choosing who to transfer</h3>
+      <ul class="space-y-3 text-gray-600">
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Click a row</strong> (or its checkbox) to select that publisher. Click again to unselect.
+          You can select one person or several (handy for a family transferring together).</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Select all visible:</strong> The checkbox above the list selects everyone currently
+          shown (respecting any search or filter you have applied).</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span>The <strong>Reports</strong> column shows how many field service reports each publisher has &mdash;
+          these travel with them in the transfer.</span>
+        </li>
+      </ul>
+      <p class="text-gray-600 leading-relaxed mt-4">
+        The counter shows how many are selected. When at least one person is selected, the
+        <strong>Generate Export &rarr;</strong> button becomes active. Click it to continue. (Use
+        <strong>&larr; Back</strong> to return to the upload screen if you loaded the wrong file.)
+      </p>
+    </section>
+
+    <!-- 5. Step 3 -->
+    <section id="step3" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 scroll-mt-24">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-sm">3</span>
+        <h2 class="text-xl font-bold text-gray-900">Step 3 &mdash; Download the transfer file</h2>
+      </div>
+      <p class="text-gray-600 leading-relaxed mb-4">
+        The export screen summarizes what you're about to create: the number of publishers and their reports,
+        with each selected name listed.
+      </p>
+      <ul class="space-y-3 text-gray-600">
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Download JSON File:</strong> Creates the transfer file containing only your selected
+          publisher(s), their address and contact details, and their field service reports &mdash; formatted so
+          New World Scheduler can import it. The file is named for the publisher and date, e.g.
+          <code class="px-1 py-0.5 bg-gray-100 rounded text-sm">Transfer_Gills_Joe_2026-07-29.json</code>.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>&larr; Back to Selection:</strong> Return to the list to change who is selected.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Start over with a new file:</strong> Clears everything so you can load a different export.</span>
+        </li>
+      </ul>
+      <p class="text-gray-600 leading-relaxed mt-4">
+        Send the downloaded JSON file to the receiving congregation (see
+        <a href="#import" class="text-brand-600 hover:underline">section 7</a> for how they import it).
+      </p>
+    </section>
+
+    <!-- 6. Letters of Introduction -->
+    <section id="letters" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 scroll-mt-24">
+      <h2 class="text-xl font-bold text-gray-900 mb-3">6. Letters of Introduction</h2>
+      <p class="text-gray-600 leading-relaxed mb-4">
+        Below the download button on Step 3 is the <strong>Letters of Introduction</strong> section. It creates
+        a ready-to-print PDF letter for each selected publisher, with the wording filled in based on your choices.
+      </p>
+
+      <h3 class="font-semibold text-gray-800 mt-4 mb-2">Letterhead (top of the section)</h3>
+      <ul class="space-y-3 text-gray-600">
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Sending Congregation</strong> and <strong>Congregation Address</strong> are pre-filled
+          from your file and appear at the top of every letter. Edit them if needed &mdash; changes apply to all letters.</span>
+        </li>
+      </ul>
+
+      <h3 class="font-semibold text-gray-800 mt-5 mb-2">Each publisher's card</h3>
+      <p class="text-gray-600 leading-relaxed mb-3">
+        Every selected publisher gets a card. As you change the options, the letter text below regenerates
+        automatically. The choices work like the columns of a form &mdash; picking an option drops the matching
+        sentence into the letter:
+      </p>
+      <ul class="space-y-3 text-gray-600">
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Transferring to:</strong> Type the name of the congregation they are moving to.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Standing in the ministry:</strong> Choose <em>Exemplary</em>, <em>In good standing</em>,
+          <em>Irregular</em> (needs encouragement), or <em>Inactive</em> (needs shepherding). Irregular and Inactive
+          replace the recommendation with appropriate, kindly worded shepherding language.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Publisher status:</strong> Regular Pioneer, Auxiliary Pioneer, Baptized Publisher,
+          Unbaptized Publisher, etc. Pre-filled from the file; change it if it's out of date.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Appointment / servant role:</strong> None, Elder, or Ministerial Servant. Combined with
+          the status to produce the correct &ldquo;serving as&hellip; recommended to continue as&hellip;&rdquo; sentence.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Comments at meetings &amp; participates in CLM student assignments:</strong> Check this to
+          add that sentence. It's on by default; uncheck it for someone who doesn't share in the CLM, even if
+          they're otherwise exemplary.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Approved public speaker</strong> and <strong>Circuit / regional teaching assignments</strong>
+          (shown for brothers): Check these to add the corresponding paragraph about public speaking privileges.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Additional notes:</strong> Anything you type here is added as its own paragraph &mdash; use it
+          for personal circumstances, history with the congregation, or specific shepherding suggestions.</span>
+        </li>
+      </ul>
+
+      <h3 class="font-semibold text-gray-800 mt-5 mb-2">The letter text box</h3>
+      <p class="text-gray-600 leading-relaxed">
+        The generated letter appears in an editable text box. You can fine-tune any wording by typing directly in it.
+        If you change the options above after editing, click <strong>Regenerate</strong> to rebuild the letter from the
+        current selections (note: this replaces your manual edits).
+      </p>
+
+      <h3 class="font-semibold text-gray-800 mt-5 mb-2">Download Letter PDF</h3>
+      <p class="text-gray-600 leading-relaxed">
+        Click <strong>Download Letter PDF</strong> to save a formatted letter with your congregation letterhead,
+        today's date, the body text, and the publisher's details (birth date, baptism date, pioneer ID if any, and
+        contact information). Each publisher gets their own letter.
+      </p>
+      <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg mt-4">
+        <p class="text-sm text-amber-800">
+          <strong>Always review before sending.</strong> The wording is a helpful starting point generated from your
+          selections. Read each letter and adjust it so it accurately reflects the individual before you print or send it.
+        </p>
+      </div>
+    </section>
+
+    <!-- 7. Importing -->
+    <section id="import" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 scroll-mt-24">
+      <h2 class="text-xl font-bold text-gray-900 mb-3">7. Importing into New World Scheduler</h2>
+      <p class="text-gray-600 leading-relaxed">
+        The receiving congregation opens New World Scheduler and uses its <strong>Import from Hourglass</strong>
+        option, then selects the JSON file you sent. The file is built to match the format that importer expects, so
+        the publisher, their details, and their field service reports come through together.
+      </p>
+    </section>
+
+    <!-- 8. FAQ -->
+    <section id="faq" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 scroll-mt-24">
+      <h2 class="text-xl font-bold text-gray-900 mb-4">8. Troubleshooting &amp; FAQ</h2>
+      <div class="space-y-5">
+        <div>
+          <h3 class="font-semibold text-gray-800 mb-1">The upload says my file is invalid.</h3>
+          <p class="text-gray-600 text-sm leading-relaxed">Make sure you're choosing the <strong>JSON</strong> file
+          exported from Hourglass (its name ends in <code class="px-1 py-0.5 bg-gray-100 rounded">.json</code>) and
+          that it hasn't been edited or renamed to a different type.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-800 mb-1">Can I transfer more than one publisher at once?</h3>
+          <p class="text-gray-600 text-sm leading-relaxed">Yes. Select as many as you like in Step 2. The transfer
+          file and a separate letter will be produced for the whole group.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-800 mb-1">A publisher's status or appointment is wrong in the letter.</h3>
+          <p class="text-gray-600 text-sm leading-relaxed">The dropdowns on each letter card are pre-filled from the
+          file but fully editable. Change them and the letter updates instantly.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-800 mb-1">My manual edits to a letter disappeared.</h3>
+          <p class="text-gray-600 text-sm leading-relaxed">Changing any option on the card (or clicking Regenerate)
+          rebuilds the letter and replaces manual edits. Make your dropdown/checkbox choices first, then do any hand-editing last.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-800 mb-1">Is my congregation's data safe?</h3>
+          <p class="text-gray-600 text-sm leading-relaxed">Yes &mdash; see <a href="#privacy" class="text-brand-600 hover:underline">section 1</a>.
+          Nothing you load is ever sent off your computer.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-800 mb-1">The import into New World Scheduler failed.</h3>
+          <p class="text-gray-600 text-sm leading-relaxed">Make sure the receiving congregation is using the
+          <strong>Import from Hourglass</strong> option and selecting the exact JSON file you sent (not a renamed or
+          modified copy). If it still fails, re-download a fresh file from this tool and try again.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="text-center mb-6">
+      <a href="/"
+        class="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Back to the App
+      </a>
+    </div>
+  </main>
+
+  <footer class="max-w-4xl mx-auto px-4 py-8 text-center text-xs text-gray-400">
+    <p>JW Publisher Transfer Tool &middot; For transferring publisher records between congregation management tools</p>
+    <p class="mt-1">All data is processed locally in your browser. No publisher information is sent to any server.</p>
+  </footer>
+</body>
+</html>
