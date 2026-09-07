@@ -231,6 +231,17 @@
         a ready-to-print PDF letter for each selected publisher, with the wording filled in based on your choices.
       </p>
 
+      <div class="p-4 bg-brand-50 border border-brand-200 rounded-lg mb-4">
+        <p class="text-sm text-gray-700">
+          <strong>Family letters:</strong> When a household transfers together, they should share one letter.
+          Publishers who have the same address in Hourglass are <strong>grouped into a single family letter
+          automatically</strong>. You can adjust this with the <em>Family letter grouping</em> menu on each
+          publisher: choose the same &ldquo;Family group&rdquo; number to combine people into one letter, or
+          &ldquo;Own letter&rdquo; to give someone their own. A family card shows all its members, a shared
+          &ldquo;Transferring to&rdquo; field, and produces one combined PDF.
+        </p>
+      </div>
+
       <h3 class="font-semibold text-gray-800 mt-4 mb-2">Letterhead (top of the section)</h3>
       <ul class="space-y-3 text-gray-600">
         <li class="flex gap-3">
@@ -249,7 +260,13 @@
       <ul class="space-y-3 text-gray-600">
         <li class="flex gap-3">
           <span class="text-brand-600 font-bold">&bull;</span>
-          <span><strong>Transferring to:</strong> Type the name of the congregation they are moving to.</span>
+          <span><strong>Transferring to:</strong> Type the name of the congregation they are moving to.
+          (On a family letter this is shared by everyone in the household.)</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-brand-600 font-bold">&bull;</span>
+          <span><strong>Family letter grouping:</strong> Combine this publisher with others into one family
+          letter, or keep them on their own. People sharing an address start out grouped automatically.</span>
         </li>
         <li class="flex gap-3">
           <span class="text-brand-600 font-bold">&bull;</span>
@@ -328,8 +345,17 @@
         </div>
         <div>
           <h3 class="font-semibold text-gray-800 mb-1">Can I transfer more than one publisher at once?</h3>
-          <p class="text-gray-600 text-sm leading-relaxed">Yes. Select as many as you like in Step 2. The transfer
-          file and a separate letter will be produced for the whole group.</p>
+          <p class="text-gray-600 text-sm leading-relaxed">Yes. Select as many as you like in Step 2. They all go
+          into one transfer file. For the letters, each publisher gets their own letter unless they're grouped as a
+          family (see below).</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-800 mb-1">A family is moving together &mdash; can they share one letter?</h3>
+          <p class="text-gray-600 text-sm leading-relaxed">Yes. Publishers who share an address are automatically
+          combined into a single family letter that introduces everyone together and downloads as one PDF. If they
+          aren't grouped the way you want, use the <strong>Family letter grouping</strong> menu on each publisher's
+          card to put them in the same &ldquo;Family group&rdquo; (or set someone to &ldquo;Own letter&rdquo; to
+          separate them).</p>
         </div>
         <div>
           <h3 class="font-semibold text-gray-800 mb-1">A publisher's status or appointment is wrong in the letter.</h3>

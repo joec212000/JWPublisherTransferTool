@@ -190,7 +190,7 @@
       <!-- Letters of Introduction -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-1">Letters of Introduction</h2>
-        <p class="text-sm text-gray-500 mb-4">Generate a PDF letter of introduction for each publisher. Details are pre-filled from the Hourglass data -- fill in the rest and adjust the letter text as needed.</p>
+        <p class="text-sm text-gray-500 mb-4">Generate a PDF letter of introduction for each publisher. Details are pre-filled from the Hourglass data -- fill in the rest and adjust the letter text as needed. Publishers who share an address are grouped into a single <strong>family letter</strong> automatically; use each publisher's <em>Family letter grouping</em> menu to combine or separate them.</p>
 
         <!-- Sending congregation letterhead settings -->
         <div class="grid sm:grid-cols-2 gap-3 mb-6 p-4 bg-gray-50 rounded-lg">
@@ -557,6 +557,8 @@ function downloadExport() {
 // --- Letters of Introduction (fully client-side PDF generation) ---
 
 let loiState = {};
+let loiSelected = [];      // publishers currently shown in the letter section
+let loiLetterText = {};    // group key -> current (possibly hand-edited) letter text
 
 function cleanCongName(name) {
   // "Chillum - MD (USA)" -> "Chillum"
@@ -700,6 +702,41 @@ function buildLetterText(pub, st) {
   const him = female ? 'her' : 'him', she = female ? 'she' : 'he';
   paragraphs.push(`We will sincerely miss ${first} and turn ${him} over to your loving care and oversight. We know ${she} will be a great addition to your congregation.`);
 
+  const details = buildDetailLines(pub);
+  if (details.length) paragraphs.push(details.join('\n'));
+
+  paragraphs.push(`Please accept our warm Christian love,\nThe Body of Elders\n${congName} Congregation`);
+
+  return paragraphs.join('\n\n');
+}
+
+function fullName(pub) {
+  return `${pub.firstname || ''} ${pub.lastname || ''}`.trim();
+}
+
+// "Alice", "Alice and Bob", "Alice, Bob, and Carol"
+function joinNames(names) {
+  if (names.length <= 1) return names[0] || '';
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
+
+// The last name shared by the most members (fallback: first member's last name).
+function deriveFamilyLast(pubs) {
+  const counts = {};
+  for (const pub of pubs) {
+    const last = (pub.lastname || '').trim();
+    if (last) counts[last] = (counts[last] || 0) + 1;
+  }
+  let best = pubs[0] ? (pubs[0].lastname || '').trim() : '';
+  let bestCount = 0;
+  for (const [last, count] of Object.entries(counts)) {
+    if (count > bestCount) { best = last; bestCount = count; }
+  }
+  return best;
+}
+
+function buildDetailLines(pub) {
   const details = [];
   if (pub.birth) details.push(`Date of birth: ${formatDateUS(pub.birth)}`);
   if (pub.baptism) details.push(`Date of baptism: ${formatDateUS(pub.baptism)}`);
@@ -709,11 +746,72 @@ function buildLetterText(pub, st) {
     details.push('Contact Info:');
     details.push(...contact);
   }
-  if (details.length) paragraphs.push(details.join('\n'));
+  return details;
+}
+
+// One member's recommendation for a combined family letter, phrased so it
+// always names the person up front (rather than a bare "He/She...").
+function memberRecommendationParagraph(pub, st) {
+  const first = pub.firstname || '';
+  const full = fullName(pub);
+  let rec = buildRecommendation(pub, st);
+  if (rec.startsWith('He ')) rec = full + ' ' + rec.slice(3);
+  else if (rec.startsWith('She ')) rec = full + ' ' + rec.slice(4);
+  else if (first && rec.startsWith(first + ' ')) rec = full + ' ' + rec.slice(first.length + 1);
+  const clm = buildClmSentence(pub, st);
+  if (clm) rec += ' ' + clm;
+  return rec;
+}
+
+// Combined letter for a household of two or more publishers.
+function buildFamilyLetterText(members) {
+  const congName = document.getElementById('loi-cong-name').value.trim();
+  const pubs = members.map(p => getFullPublisher(p.id));
+  const sts = members.map(p => loiState[p.id]);
+  const familyLast = deriveFamilyLast(pubs);
+  const newCong = (sts.find(s => s.newCong && s.newCong.trim()) || {}).newCong || '';
+
+  const paragraphs = [];
+  paragraphs.push('Dear Brothers,');
+
+  const names = joinNames(pubs.map(fullName));
+  paragraphs.push(
+    `This letter is to introduce the ${familyLast} family (${names}), who are transferring from the ` +
+    `${congName} Congregation to the ${newCong || '________'} Congregation.`
+  );
+
+  // A recommendation paragraph for each family member, plus any speaker
+  // paragraph and personal notes that apply to that member.
+  for (let i = 0; i < pubs.length; i++) {
+    paragraphs.push(memberRecommendationParagraph(pubs[i], sts[i]));
+    const speaker = buildSpeakerParagraph(pubs[i], sts[i]);
+    if (speaker) paragraphs.push(speaker);
+    if (sts[i].notes && sts[i].notes.trim()) paragraphs.push(`Regarding ${pubs[i].firstname || fullName(pubs[i])}: ${sts[i].notes.trim()}`);
+  }
+
+  paragraphs.push(
+    `We will sincerely miss the ${familyLast} family and turn them over to your loving care and ` +
+    `oversight. We know they will be a great addition to your congregation.`
+  );
+
+  // Personal details for each member.
+  for (const pub of pubs) {
+    const details = buildDetailLines(pub);
+    if (details.length) paragraphs.push([fullName(pub), ...details].join('\n'));
+  }
 
   paragraphs.push(`Please accept our warm Christian love,\nThe Body of Elders\n${congName} Congregation`);
 
   return paragraphs.join('\n\n');
+}
+
+// Build the letter text for a group (single publisher or a family).
+function buildGroupText(group) {
+  if (group.members.length === 1) {
+    const p = group.members[0];
+    return buildLetterText(getFullPublisher(p.id), loiState[p.id]);
+  }
+  return buildFamilyLetterText(group.members);
 }
 
 function prepareLetterSection(selected) {
@@ -740,12 +838,78 @@ function prepareLetterSection(selected) {
         publicSpeaker: false,
         circuitSpeaker: false,
         notes: '',
-        letterText: null,
+        family: undefined,   // '' = own letter, otherwise a shared family label
       };
     }
   }
 
+  // Suggest family groupings for anyone not yet assigned (publishers who
+  // share a home address are almost always a household transferring together).
+  assignAutoFamilies(selected);
+
+  loiSelected = selected;
   renderLetterCards(selected);
+}
+
+// Auto-assign a shared family label to selected publishers who live at the
+// same address. Only fills in publishers that don't already have a choice,
+// so it never overrides what the user picked manually.
+function assignAutoFamilies(selected) {
+  const byAddress = new Map();
+  for (const p of selected) {
+    const pub = getFullPublisher(p.id);
+    if (pub.address_id == null) continue;
+    if (!byAddress.has(pub.address_id)) byAddress.set(pub.address_id, []);
+    byAddress.get(pub.address_id).push(p.id);
+  }
+
+  const used = new Set(selected.map(p => loiState[p.id].family).filter(Boolean));
+  let next = 1;
+  const nextFreeLabel = () => {
+    while (used.has(String(next))) next++;
+    const label = String(next);
+    used.add(label);
+    return label;
+  };
+
+  for (const ids of byAddress.values()) {
+    if (ids.length < 2) continue;
+    const unset = ids.filter(id => loiState[id].family === undefined);
+    if (unset.length === 0) continue;
+    // Reuse an existing label already applied to this household, else allocate one.
+    let label = ids.map(id => loiState[id].family).find(Boolean) || nextFreeLabel();
+    for (const id of unset) loiState[id].family = label;
+  }
+
+  // Everyone still unset gets their own individual letter.
+  for (const p of selected) {
+    if (loiState[p.id].family === undefined) loiState[p.id].family = '';
+  }
+}
+
+// Group the selected publishers by their family label. Publishers with a blank
+// label (or a label nobody else shares) get their own individual group.
+function computeGroups(selected) {
+  const counts = {};
+  for (const p of selected) {
+    const fam = loiState[p.id].family;
+    if (fam) counts[fam] = (counts[fam] || 0) + 1;
+  }
+  const groups = [];
+  const byLabel = {};
+  for (const p of selected) {
+    const fam = loiState[p.id].family;
+    if (fam && counts[fam] > 1) {
+      if (!byLabel[fam]) {
+        byLabel[fam] = { key: 'fam-' + fam, family: fam, members: [] };
+        groups.push(byLabel[fam]);
+      }
+      byLabel[fam].members.push(p);
+    } else {
+      groups.push({ key: 'ind-' + p.id, family: '', members: [p] });
+    }
+  }
+  return groups;
 }
 
 const STATUS_OPTIONS = [
@@ -784,87 +948,163 @@ function buildOptions(values, current) {
   ).join('');
 }
 
+// Options for the family-grouping dropdown shown on every publisher.
+function familyOptions(current, count) {
+  const opts = [['', 'Own letter']];
+  for (let i = 1; i <= Math.max(count, 1); i++) opts.push([String(i), 'Family group ' + i]);
+  if (current && !opts.some(([v]) => v === current)) opts.push([current, 'Family group ' + current]);
+  return opts.map(([v, l]) =>
+    `<option value="${escapeHtml(v)}" ${v === current ? 'selected' : ''}>${escapeHtml(l)}</option>`
+  ).join('');
+}
+
+// The per-publisher settings block (used both for individuals and for each
+// member inside a family card). When showNewCong is false the "Transferring
+// to" field is omitted because it is shown once at the family level.
+function memberSettingsHtml(p, showNewCong) {
+  const pub = getFullPublisher(p.id);
+  const st = loiState[p.id];
+  const female = pub.sex === 'Female';
+  const count = loiSelected.length;
+  return `
+    <div class="grid sm:grid-cols-2 gap-3 mb-3">
+      ${showNewCong ? `
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Transferring to (new congregation)</label>
+        <input type="text" value="${escapeHtml(st.newCong)}" placeholder="e.g. Accokeek"
+          oninput="updateLoi(${p.id}, 'newCong', this.value)"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none" />
+      </div>` : ''}
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Family letter grouping</label>
+        <select onchange="updateLoi(${p.id}, 'family', this.value)"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">
+          ${familyOptions(st.family, count)}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Standing in the ministry</label>
+        <select onchange="updateLoi(${p.id}, 'activity', this.value)"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">
+          ${buildOptions(ACTIVITY_OPTIONS, st.activity)}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Publisher status</label>
+        <select onchange="updateLoi(${p.id}, 'status', this.value)"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">
+          ${buildOptions(STATUS_OPTIONS, st.status)}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Appointment / servant role</label>
+        <select onchange="updateLoi(${p.id}, 'role', this.value)"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">
+          ${buildOptions(ROLE_OPTIONS, st.role)}
+        </select>
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-6 mb-3 text-sm">
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" ${st.clm ? 'checked' : ''}
+          onchange="updateLoi(${p.id}, 'clm', this.checked)"
+          class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+        <span class="text-gray-600">Comments at meetings &amp; participates in CLM student assignments</span>
+      </label>
+    </div>
+    ${!female ? `
+    <div class="flex flex-wrap items-center gap-6 mb-3 text-sm">
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" ${st.publicSpeaker ? 'checked' : ''}
+          onchange="updateLoi(${p.id}, 'publicSpeaker', this.checked)"
+          class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+        <span class="text-gray-600">Approved public speaker</span>
+      </label>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" ${st.circuitSpeaker ? 'checked' : ''}
+          onchange="updateLoi(${p.id}, 'circuitSpeaker', this.checked)"
+          class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+        <span class="text-gray-600">Circuit / regional teaching assignments</span>
+      </label>
+    </div>` : ''}
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-600 mb-1">Additional notes (included as a paragraph in the letter)</label>
+      <textarea rows="2" placeholder="Any personal circumstances, history with the congregation, shepherding suggestions..."
+        oninput="updateLoi(${p.id}, 'notes', this.value)"
+        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">${escapeHtml(st.notes)}</textarea>
+    </div>`;
+}
+
+function letterTextBlock(group, label) {
+  return `
+    <div class="mb-3">
+      <div class="flex items-center justify-between mb-1">
+        <label class="block text-xs font-medium text-gray-600">${label} (editable -- changing the fields above regenerates it)</label>
+        <button onclick="regenerateGroup('${group.key}')" class="text-xs text-brand-600 hover:text-brand-700 underline">Regenerate</button>
+      </div>
+      <textarea id="loi-text-${group.key}" rows="${group.members.length > 1 ? 16 : 12}"
+        oninput="loiLetterText['${group.key}'] = this.value"
+        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"></textarea>
+    </div>`;
+}
+
 function renderLetterCards(selected) {
   const container = document.getElementById('loi-cards');
-  container.innerHTML = selected.map(p => {
-    const pub = getFullPublisher(p.id);
-    const st = loiState[p.id];
-    const female = pub.sex === 'Female';
+  const groups = computeGroups(selected);
+
+  container.innerHTML = groups.map(group => {
+    if (group.members.length > 1) {
+      // ---- Family (combined) letter card ----
+      const pubs = group.members.map(p => getFullPublisher(p.id));
+      const familyLast = deriveFamilyLast(pubs);
+      const sharedCong = (group.members
+        .map(p => loiState[p.id].newCong)
+        .find(v => v && v.trim())) || '';
+      const memberSubcards = group.members.map(p => `
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="font-medium text-gray-800">${escapeHtml(p.fullName)}</h4>
+            <span class="text-xs text-gray-400">${escapeHtml(getFullPublisher(p.id).status || '')}</span>
+          </div>
+          ${memberSettingsHtml(p, false)}
+        </div>`).join('');
+
+      return `
+      <div class="border-2 border-brand-200 rounded-lg p-4 bg-brand-50/40">
+        <div class="flex items-center justify-between mb-1">
+          <h3 class="font-semibold text-gray-900">Family letter &middot; ${escapeHtml(familyLast)} family</h3>
+          <span class="text-xs font-medium text-brand-700 bg-brand-100 px-2 py-0.5 rounded-full">${group.members.length} publishers &middot; one letter</span>
+        </div>
+        <p class="text-xs text-gray-500 mb-3">${escapeHtml(joinNames(group.members.map(p => p.fullName)))} will be introduced together in a single letter.</p>
+        <div class="mb-3">
+          <label class="block text-xs font-medium text-gray-600 mb-1">Transferring to (new congregation)</label>
+          <input type="text" value="${escapeHtml(sharedCong)}" placeholder="e.g. Accokeek"
+            oninput="updateFamilyNewCong('${group.family}', this.value)"
+            class="w-full sm:w-1/2 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none" />
+        </div>
+        <div class="space-y-3 mb-3">${memberSubcards}</div>
+        ${letterTextBlock(group, 'Combined family letter text')}
+        <div class="text-right">
+          <button onclick="downloadGroupPdf('${group.key}')"
+            class="px-5 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition">
+            Download Family Letter PDF
+          </button>
+        </div>
+      </div>`;
+    }
+
+    // ---- Individual letter card ----
+    const p = group.members[0];
     return `
     <div class="border border-gray-200 rounded-lg p-4" id="loi-card-${p.id}">
       <div class="flex items-center justify-between mb-3">
         <h3 class="font-semibold text-gray-900">${escapeHtml(p.fullName)}</h3>
-        <span class="text-xs text-gray-400">${escapeHtml(pub.status || '')}${pub.appt ? ' · ' + escapeHtml(pub.appt) : ''}</span>
+        <span class="text-xs text-gray-400">${escapeHtml(getFullPublisher(p.id).status || '')}${getFullPublisher(p.id).appt ? ' · ' + escapeHtml(getFullPublisher(p.id).appt) : ''}</span>
       </div>
-      <div class="grid sm:grid-cols-2 gap-3 mb-3">
-        <div>
-          <label class="block text-xs font-medium text-gray-600 mb-1">Transferring to (new congregation)</label>
-          <input type="text" value="${escapeHtml(st.newCong)}" placeholder="e.g. Accokeek"
-            oninput="updateLoi(${p.id}, 'newCong', this.value)"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none" />
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-600 mb-1">Standing in the ministry</label>
-          <select onchange="updateLoi(${p.id}, 'activity', this.value)"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">
-            ${buildOptions(ACTIVITY_OPTIONS, st.activity)}
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-600 mb-1">Publisher status</label>
-          <select onchange="updateLoi(${p.id}, 'status', this.value)"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">
-            ${buildOptions(STATUS_OPTIONS, st.status)}
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-600 mb-1">Appointment / servant role</label>
-          <select onchange="updateLoi(${p.id}, 'role', this.value)"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">
-            ${buildOptions(ROLE_OPTIONS, st.role)}
-          </select>
-        </div>
-      </div>
-      <div class="flex flex-wrap items-center gap-6 mb-3 text-sm">
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" ${st.clm ? 'checked' : ''}
-            onchange="updateLoi(${p.id}, 'clm', this.checked)"
-            class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-          <span class="text-gray-600">Comments at meetings &amp; participates in CLM student assignments</span>
-        </label>
-      </div>
-      ${!female ? `
-      <div class="flex flex-wrap items-center gap-6 mb-3 text-sm">
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" ${st.publicSpeaker ? 'checked' : ''}
-            onchange="updateLoi(${p.id}, 'publicSpeaker', this.checked)"
-            class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-          <span class="text-gray-600">Approved public speaker</span>
-        </label>
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" ${st.circuitSpeaker ? 'checked' : ''}
-            onchange="updateLoi(${p.id}, 'circuitSpeaker', this.checked)"
-            class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-          <span class="text-gray-600">Circuit / regional teaching assignments</span>
-        </label>
-      </div>` : ''}
-      <div class="mb-3">
-        <label class="block text-xs font-medium text-gray-600 mb-1">Additional notes (included as a paragraph in the letter)</label>
-        <textarea rows="2" placeholder="Any personal circumstances, history with the congregation, shepherding suggestions..."
-          oninput="updateLoi(${p.id}, 'notes', this.value)"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">${escapeHtml(st.notes)}</textarea>
-      </div>
-      <div class="mb-3">
-        <div class="flex items-center justify-between mb-1">
-          <label class="block text-xs font-medium text-gray-600">Letter text (editable -- changing the fields above regenerates it)</label>
-          <button onclick="regenerateLetter(${p.id})" class="text-xs text-brand-600 hover:text-brand-700 underline">Regenerate</button>
-        </div>
-        <textarea id="loi-text-${p.id}" rows="12"
-          oninput="loiState[${p.id}].letterText = this.value"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"></textarea>
-      </div>
+      ${memberSettingsHtml(p, true)}
+      ${letterTextBlock(group, 'Letter text')}
       <div class="text-right">
-        <button onclick="downloadLetterPdf(${p.id})"
+        <button onclick="downloadGroupPdf('${group.key}')"
           class="px-5 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition">
           Download Letter PDF
         </button>
@@ -872,33 +1112,60 @@ function renderLetterCards(selected) {
     </div>`;
   }).join('');
 
-  // Populate letter textareas (kept out of template string to avoid HTML escaping issues)
-  for (const p of selected) {
-    const st = loiState[p.id];
-    if (st.letterText === null) st.letterText = buildLetterText(getFullPublisher(p.id), st);
-    document.getElementById(`loi-text-${p.id}`).value = st.letterText;
+  // Populate letter textareas (kept out of the template string to avoid HTML escaping issues)
+  for (const group of groups) {
+    if (loiLetterText[group.key] == null) loiLetterText[group.key] = buildGroupText(group);
+    const ta = document.getElementById(`loi-text-${group.key}`);
+    if (ta) ta.value = loiLetterText[group.key];
   }
+}
+
+function findGroupForId(id) {
+  return computeGroups(loiSelected).find(g => g.members.some(p => p.id === id));
+}
+
+function getGroupByKey(key) {
+  return computeGroups(loiSelected).find(g => g.key === key);
 }
 
 function updateLoi(id, field, value) {
   loiState[id][field] = value;
-  regenerateLetter(id);
+  if (field === 'family') {
+    // Regrouping changes which letters exist -- rebuild the whole section.
+    loiLetterText = {};
+    renderLetterCards(loiSelected);
+    return;
+  }
+  const group = findGroupForId(id);
+  if (group) regenerateGroup(group.key);
 }
 
-function regenerateLetter(id) {
-  const st = loiState[id];
-  st.letterText = buildLetterText(getFullPublisher(id), st);
-  const ta = document.getElementById(`loi-text-${id}`);
-  if (ta) ta.value = st.letterText;
+function updateFamilyNewCong(family, value) {
+  for (const p of loiSelected) {
+    if (loiState[p.id].family === family) loiState[p.id].newCong = value;
+  }
+  const group = computeGroups(loiSelected).find(g => g.family === family && g.members.length > 1);
+  if (group) regenerateGroup(group.key);
+}
+
+function regenerateGroup(key) {
+  const group = getGroupByKey(key);
+  if (!group) return;
+  loiLetterText[key] = buildGroupText(group);
+  const ta = document.getElementById(`loi-text-${key}`);
+  if (ta) ta.value = loiLetterText[key];
 }
 
 function refreshAllLetters() {
-  for (const id of Object.keys(loiState)) regenerateLetter(Number(id));
+  for (const group of computeGroups(loiSelected)) {
+    loiLetterText[group.key] = buildGroupText(group);
+    const ta = document.getElementById(`loi-text-${group.key}`);
+    if (ta) ta.value = loiLetterText[group.key];
+  }
 }
 
-function downloadLetterPdf(id) {
-  const pub = getFullPublisher(id);
-  const st = loiState[id];
+// Render arbitrary letter text into a PDF with the congregation letterhead.
+function renderLetterPdf(letterText, filename) {
   const congName = document.getElementById('loi-cong-name').value.trim();
   const congAddress = document.getElementById('loi-cong-address').value.trim();
 
@@ -932,7 +1199,7 @@ function downloadLetterPdf(id) {
   y += 28;
 
   // Body
-  const paragraphs = st.letterText.split('\n\n');
+  const paragraphs = letterText.split('\n\n');
   for (const para of paragraphs) {
     const lines = doc.splitTextToSize(para, maxWidth);
     for (const line of lines) {
@@ -946,9 +1213,25 @@ function downloadLetterPdf(id) {
     y += 12;
   }
 
-  const last = (pub.lastname || 'Unknown').replace(/\s+/g, '_');
-  const first = (pub.firstname || '').replace(/\s+/g, '_');
-  doc.save(`Letter_of_Introduction_${last}_${first}.pdf`);
+  doc.save(filename);
+}
+
+function downloadGroupPdf(key) {
+  const group = getGroupByKey(key);
+  if (!group) return;
+  const text = loiLetterText[key] != null ? loiLetterText[key] : buildGroupText(group);
+
+  let filename;
+  if (group.members.length > 1) {
+    const familyLast = (deriveFamilyLast(group.members.map(p => getFullPublisher(p.id))) || 'Family').replace(/\s+/g, '_');
+    filename = `Letter_of_Introduction_${familyLast}_Family.pdf`;
+  } else {
+    const pub = getFullPublisher(group.members[0].id);
+    const last = (pub.lastname || 'Unknown').replace(/\s+/g, '_');
+    const first = (pub.firstname || '').replace(/\s+/g, '_');
+    filename = `Letter_of_Introduction_${last}_${first}.pdf`;
+  }
+  renderLetterPdf(text, filename);
 }
 
 function resetApp() {
@@ -957,6 +1240,8 @@ function resetApp() {
   reportCounts = {};
   selectedIds.clear();
   loiState = {};
+  loiSelected = [];
+  loiLetterText = {};
   fileInput.value = '';
   document.getElementById('search-input').value = '';
   document.getElementById('loi-cong-name').value = '';
